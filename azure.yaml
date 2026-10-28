@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: key-vault-secrets-azure
+metadata:
+  template: key-vault-secrets-azure@0.1.0
+
+infra:
+  provider: bicep
+  path: infra
+
+services:
+  api:
+    project: ./src/api
+    language: dotnet
+    host: appservice
+
+hooks:
+  postprovision:
+    windows:
+      shell: pwsh
+      run: ./scripts/create-sql-user.ps1
+    posix:
+      shell: sh
+      run: echo "Run scripts/create-sql-user.ps1 from Windows PowerShell, or create the SQL user by hand (see README)."
+

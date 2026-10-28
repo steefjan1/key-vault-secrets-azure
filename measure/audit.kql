@@ -1,0 +1,29 @@
+// Who read which secret, and how often. Run in the Log Analytics workspace
+// that the Key Vault diagnostic setting points to.
+
+// 1. SecretGet per identity over the last hour
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT" and OperationName == "SecretGet"
+| where TimeGenerated > ago(1h)
+| summarize calls = count() by identity_claim_appid_g, ResultSignature, bin(TimeGenerated, 1m)
+| order by TimeGenerated asc
+
+// 2. Throttling: a 429 here means a path reads the vault on the request path
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT" and ResultSignature == "Too Many Requests"
+| where TimeGenerated > ago(24h)
+| summarize count() by OperationName, bin(TimeGenerated, 5m)
+
+// 3. Who rotated (SecretSet) and what the app saw afterwards (SecretGet)
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT" and OperationName in ("SecretSet", "SecretGet")
+| where TimeGenerated > ago(2h)
+| project TimeGenerated, OperationName, identity_claim_appid_g, CallerIPAddress, ResultSignature, id_s
+// identity_claim_upn_s exists only after a user (not a service principal) has called the vault; add it to the project once it does
+| order by TimeGenerated asc
+
+// 4. Forbidden reads: an identity without the Key Vault Secrets User role
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.KEYVAULT" and ResultSignature == "Forbidden"
+| where TimeGenerated > ago(24h)
+| project TimeGenerated, OperationName, identity_claim_appid_g, CallerIPAddress, id_s

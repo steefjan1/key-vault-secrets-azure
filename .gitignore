@@ -1,0 +1,8 @@
+bin/
+obj/
+.azure/
+.vs/
+*.user
+measure/*.json
+images/*.tmp.*
+__pycache__/
